@@ -362,7 +362,7 @@ class LightGlue(nn.Module):
         },
     }
 
-    def __init__(self, features="superpoint", **conf) -> None:
+    def __init__(self, device, features="superpoint", **conf) -> None:
         super().__init__()
         self.conf = conf = SimpleNamespace(**{**self.default_conf, **conf})
         if features is not None:
@@ -398,7 +398,7 @@ class LightGlue(nn.Module):
         if features is not None:
             fname = f"{conf.weights}_{self.version.replace('.', '-')}.pth"
             state_dict = torch.hub.load_state_dict_from_url(
-                self.url.format(self.version, features), file_name=fname, map_location="mps"
+                self.url.format(self.version, features), file_name=fname, map_location=device
             )
             self.load_state_dict(state_dict, strict=False)
         elif conf.weights is not None:

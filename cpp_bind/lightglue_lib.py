@@ -11,7 +11,7 @@ device = torch.device(
 extractor = SuperPoint(device, max_num_keypoints=None).eval().to(device)  # load the extractor
 
 matcher = (
-    LightGlue(features="superpoint", depth_confidence=-1, width_confidence=-1).eval().to(device)
+    LightGlue(device, features="superpoint", depth_confidence=-1, width_confidence=-1).eval().to(device)
 )  # load the matcher
 
 
