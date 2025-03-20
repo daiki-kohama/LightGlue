@@ -18,7 +18,7 @@ matcher = (
 def feature_extract(image):
     image = numpy_image_to_torch(image).to(device)
     feats = extractor.extract(image)
-    return feats["keypoints"].cpu().numpy(), feats["descriptors"].cpu().numpy()
+    return feats["keypoints"].cpu().numpy()[0], feats["descriptors"].cpu().numpy()[0]
 
 
 def image_match(image0, image1, keypoints0, keypoints1, descriptors0, descriptors1):
@@ -27,13 +27,13 @@ def image_match(image0, image1, keypoints0, keypoints1, descriptors0, descriptor
     image1 = numpy_image_to_torch(image1).to(device)
 
     feats0 = {
-        "keypoints": torch.Tensor(keypoints0).to(device),
-        "descriptors": torch.Tensor(descriptors0).to(device),
+        "keypoints": torch.Tensor([keypoints0]).to(device),
+        "descriptors": torch.Tensor([descriptors0]).to(device),
         "image_size": torch.Tensor([[image0.shape[2], image0.shape[1]]]).to(device),
     }
     feats1 = {
-        "keypoints": torch.Tensor(keypoints1).to(device),
-        "descriptors": torch.Tensor(descriptors1).to(device),
+        "keypoints": torch.Tensor([keypoints1]).to(device),
+        "descriptors": torch.Tensor([descriptors1]).to(device),
         "image_size": torch.Tensor([[image1.shape[2], image1.shape[1]]]).to(device),
     }
 
@@ -43,10 +43,10 @@ def image_match(image0, image1, keypoints0, keypoints1, descriptors0, descriptor
         rbd(x) for x in [feats0, feats1, matches01]
     ]  # remove batch dimension
     matches = matches01["matches"]  # indices with shape (K,2)
-    points0 = feats0["keypoints"][matches[..., 0]]  # coordinates in image #0, shape (K,2)
-    points1 = feats1["keypoints"][matches[..., 1]]  # coordinates in image #1, shape (K,2)
+    # points0 = feats0["keypoints"][matches[..., 0]]  # coordinates in image #0, shape (K,2)
+    # points1 = feats1["keypoints"][matches[..., 1]]  # coordinates in image #1, shape (K,2)
 
-    return points0.cpu().numpy(), points1.cpu().numpy()
+    return matches.cpu().numpy()
 
 
 if __name__ == "__main__":
@@ -59,6 +59,6 @@ if __name__ == "__main__":
     print(keypoints)
     print(descriptors)
 
-    points0, points1 = image_match(image0, image0, keypoints, keypoints, descriptors, descriptors)
+    matches = image_match(image0, image0, keypoints, keypoints, descriptors, descriptors)
 
-    print(points0)
+    print(matches)
