@@ -11,7 +11,9 @@ device = torch.device(
 extractor = SuperPoint(device, max_num_keypoints=None).eval().to(device)  # load the extractor
 
 matcher = (
-    LightGlue(device, features="superpoint", depth_confidence=-1, width_confidence=-1).eval().to(device)
+    LightGlue(device, features="superpoint", depth_confidence=-1, width_confidence=-1)
+    .eval()
+    .to(device)
 )  # load the matcher
 
 
@@ -23,17 +25,18 @@ def feature_extract(image):
 
 def image_match(image0, image1, keypoints0, keypoints1, descriptors0, descriptors1):
     # load each image as a torch.Tensor on GPU with shape (3,H,W), normalized in [0,1]
-    image0 = numpy_image_to_torch(image0).to(device)
-    image1 = numpy_image_to_torch(image1).to(device)
+
+    image0 = numpy_image_to_torch(np.array(image0)[..., ::-1]).to(device)
+    image1 = numpy_image_to_torch(np.array(image1)[..., ::-1]).to(device)
 
     feats0 = {
-        "keypoints": torch.Tensor([keypoints0]).to(device),
-        "descriptors": torch.Tensor([descriptors0]).to(device),
+        "keypoints": torch.from_numpy(np.array([keypoints0]).astype(np.float32)).to(device),
+        "descriptors": torch.from_numpy(np.array([descriptors0]).astype(np.float32)).to(device),
         "image_size": torch.Tensor([[image0.shape[2], image0.shape[1]]]).to(device),
     }
     feats1 = {
-        "keypoints": torch.Tensor([keypoints1]).to(device),
-        "descriptors": torch.Tensor([descriptors1]).to(device),
+        "keypoints": torch.from_numpy(np.array([keypoints1]).astype(np.float32)).to(device),
+        "descriptors": torch.from_numpy(np.array([descriptors1]).astype(np.float32)).to(device),
         "image_size": torch.Tensor([[image1.shape[2], image1.shape[1]]]).to(device),
     }
 
