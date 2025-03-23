@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 from lightglue import LightGlue, SuperPoint
@@ -18,7 +19,7 @@ matcher = (
 
 
 def feature_extract(image):
-    image = numpy_image_to_torch(image).to(device)
+    image = numpy_image_to_torch(np.array(image)[..., ::-1]).to(device)
     feats = extractor.extract(image)
     return feats["keypoints"].cpu().numpy()[0], feats["descriptors"].cpu().numpy()[0]
 
@@ -46,10 +47,11 @@ def image_match(image0, image1, keypoints0, keypoints1, descriptors0, descriptor
         rbd(x) for x in [feats0, feats1, matches01]
     ]  # remove batch dimension
     matches = matches01["matches"]  # indices with shape (K,2)
+    scores = matches01["scores"]
     # points0 = feats0["keypoints"][matches[..., 0]]  # coordinates in image #0, shape (K,2)
     # points1 = feats1["keypoints"][matches[..., 1]]  # coordinates in image #1, shape (K,2)
 
-    return matches.cpu().numpy()
+    return matches.cpu().numpy(), scores.cpu().numpy()
 
 
 if __name__ == "__main__":
