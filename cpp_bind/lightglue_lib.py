@@ -51,7 +51,7 @@ def image_match(image0, image1, keypoints0, keypoints1, descriptors0, descriptor
     # points0 = feats0["keypoints"][matches[..., 0]]  # coordinates in image #0, shape (K,2)
     # points1 = feats1["keypoints"][matches[..., 1]]  # coordinates in image #1, shape (K,2)
 
-    return matches.cpu().numpy(), scores.cpu().numpy()
+    return matches.cpu().numpy(), scores.detach().cpu().numpy()
 
 
 if __name__ == "__main__":
@@ -64,6 +64,7 @@ if __name__ == "__main__":
     print(keypoints)
     print(descriptors)
 
-    matches = image_match(image0, image0, keypoints, keypoints, descriptors, descriptors)
+    matches, scores = image_match(image0, image0, keypoints, keypoints, descriptors, descriptors)
 
     print(matches)
+    print(scores)
