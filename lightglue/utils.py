@@ -1,7 +1,7 @@
 import collections.abc as collections
+from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Callable, List, Optional, Tuple, Union
 
 import cv2
 import kornia
@@ -23,7 +23,7 @@ class ImagePreprocessor:
         self.conf = {**self.default_conf, **conf}
         self.conf = SimpleNamespace(**self.conf)
 
-    def __call__(self, img: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __call__(self, img: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Resize and preprocess an image, return image and resize scale"""
         h, w = img.shape[-2:]
         if self.conf.resize is not None:
@@ -64,8 +64,7 @@ def batch_to_device(batch: dict, device: str = "cpu", non_blocking: bool = True)
 def rbd(data: dict) -> dict:
     """Remove batch dimension from elements in data"""
     return {
-        k: v[0] if isinstance(v, (torch.Tensor, np.ndarray, list)) else v
-        for k, v in data.items()
+        k: v[0] if isinstance(v, (torch.Tensor, np.ndarray, list)) else v for k, v in data.items()
     }
 
 
@@ -76,7 +75,7 @@ def read_image(path: Path, grayscale: bool = False) -> np.ndarray:
     mode = cv2.IMREAD_GRAYSCALE if grayscale else cv2.IMREAD_COLOR
     image = cv2.imread(str(path), mode)
     if image is None:
-        raise IOError(f"Could not read image at {path}.")
+        raise OSError(f"Could not read image at {path}.")
     if not grayscale:
         image = image[..., ::-1]
     return image
@@ -95,9 +94,9 @@ def numpy_image_to_torch(image: np.ndarray) -> torch.Tensor:
 
 def resize_image(
     image: np.ndarray,
-    size: Union[List[int], int],
+    size: list[int] | int,
     fn: str = "max",
-    interp: Optional[str] = "area",
+    interp: str | None = "area",
 ) -> np.ndarray:
     """Resize an image to a fixed size, or according to max or min edge."""
     h, w = image.shape[:2]
@@ -138,7 +137,7 @@ class Extractor(torch.nn.Module):
         """Perform extraction with online resizing"""
         if img.dim() == 3:
             img = img[None]  # add batch dim
-        assert img.dim() == 4 and img.shape[0] == 1
+        assert img.dim() == 4
         shape = img.shape[-2:][::-1]
         img, scales = ImagePreprocessor(**{**self.preprocess_conf, **conf})(img)
         feats = self.forward({"image": img})
@@ -161,5 +160,5 @@ def match_pair(
     matches01 = matcher({"image0": feats0, "image1": feats1})
     data = [feats0, feats1, matches01]
     # remove batch dim and move to target device
-    feats0, feats1, matches01 = [batch_to_device(rbd(x), device) for x in data]
+    feats0, feats1, matches01 = (batch_to_device(rbd(x), device) for x in data)
     return feats0, feats1, matches01

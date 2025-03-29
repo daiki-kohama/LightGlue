@@ -89,9 +89,7 @@ def sample_descriptors(keypoints, descriptors, s: int = 8):
     descriptors = torch.nn.functional.grid_sample(
         descriptors, keypoints.view(b, 1, -1, 2), mode="bilinear", **args
     )
-    descriptors = torch.nn.functional.normalize(
-        descriptors.reshape(b, c, -1), p=2, dim=1
-    )
+    descriptors = torch.nn.functional.normalize(descriptors.reshape(b, c, -1), p=2, dim=1)
     return descriptors
 
 
@@ -137,9 +135,7 @@ class SuperPoint(Extractor):
         self.convPb = nn.Conv2d(c5, 65, kernel_size=1, stride=1, padding=0)
 
         self.convDa = nn.Conv2d(c4, c5, kernel_size=3, stride=1, padding=1)
-        self.convDb = nn.Conv2d(
-            c5, self.conf.descriptor_dim, kernel_size=1, stride=1, padding=0
-        )
+        self.convDb = nn.Conv2d(c5, self.conf.descriptor_dim, kernel_size=1, stride=1, padding=0)
 
         url = "https://github.com/cvg/LightGlue/releases/download/v0.1_arxiv/superpoint_v1.pth"  # noqa
         self.load_state_dict(torch.hub.load_state_dict_from_url(url))
@@ -190,9 +186,7 @@ class SuperPoint(Extractor):
         scores = scores[best_kp]
 
         # Separate into batches
-        keypoints = [
-            torch.stack(best_kp[1:3], dim=-1)[best_kp[0] == i] for i in range(b)
-        ]
+        keypoints = [torch.stack(best_kp[1:3], dim=-1)[best_kp[0] == i] for i in range(b)]
         scores = [scores[best_kp[0] == i] for i in range(b)]
 
         # Keep the k keypoints with highest score
@@ -201,8 +195,9 @@ class SuperPoint(Extractor):
                 zip(
                     *[
                         top_k_keypoints(k, s, self.conf.max_num_keypoints)
-                        for k, s in zip(keypoints, scores)
-                    ]
+                        for k, s in zip(keypoints, scores, strict=False)
+                    ],
+                    strict=False,
                 )
             )
 
@@ -217,7 +212,7 @@ class SuperPoint(Extractor):
         # Extract descriptors
         descriptors = [
             sample_descriptors(k[None], d[None], 8)[0]
-            for k, d in zip(keypoints, descriptors)
+            for k, d in zip(keypoints, descriptors, strict=False)
         ]
 
         return {

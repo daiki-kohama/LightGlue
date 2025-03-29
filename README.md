@@ -1,180 +1,165 @@
-<p align="center">
-  <h1 align="center"><ins>LightGlue</ins> ⚡️<br>Local Feature Matching at Light Speed</h1>
-  <p align="center">
-    <a href="https://www.linkedin.com/in/philipplindenberger/">Philipp Lindenberger</a>
-    ·
-    <a href="https://psarlin.com/">Paul-Edouard&nbsp;Sarlin</a>
-    ·
-    <a href="https://www.microsoft.com/en-us/research/people/mapoll/">Marc&nbsp;Pollefeys</a>
-  </p>
-  <h2 align="center">
-    <p>ICCV 2023</p>
-    <a href="https://arxiv.org/pdf/2306.13643.pdf" align="center">Paper</a> | 
-    <a href="https://colab.research.google.com/github/cvg/LightGlue/blob/main/demo.ipynb" align="center">Colab</a> | 
-    <a href="https://psarlin.com/assets/LightGlue_ICCV2023_poster_compressed.pdf" align="center">Poster</a> | 
-    <a href="https://github.com/cvg/glue-factory" align="center">Train your own!</a>
-  </h2>
-  
-</p>
-<p align="center">
-    <a href="https://arxiv.org/abs/2306.13643"><img src="assets/easy_hard.jpg" alt="example" width=80%></a>
-    <br>
-    <em>LightGlue is a deep neural network that matches sparse local features across image pairs.<br>An adaptive mechanism makes it fast for easy pairs (top) and reduces the computational complexity for difficult ones (bottom).</em>
-</p>
+<div align="right"> English | <a href="https://github.com/fabio-sim/LightGlue-ONNX/blob/main/docs/README.zh.md">简体中文</a> | <a href="https://github.com/fabio-sim/LightGlue-ONNX/blob/main/docs/README.ja.md">日本語</a></div>
 
-##
+[![ONNX](https://img.shields.io/badge/ONNX-grey)](https://onnx.ai/)
+[![TensorRT](https://img.shields.io/badge/TensorRT-76B900)](https://developer.nvidia.com/tensorrt)
+[![GitHub Repo stars](https://img.shields.io/github/stars/fabio-sim/LightGlue-ONNX)](https://github.com/fabio-sim/LightGlue-ONNX/stargazers)
+[![GitHub all releases](https://img.shields.io/github/downloads/fabio-sim/LightGlue-ONNX/total)](https://github.com/fabio-sim/LightGlue-ONNX/releases)
+[![Blog](https://img.shields.io/badge/Blog-blue)](https://fabio-sim.github.io/blog/accelerating-lightglue-inference-onnx-runtime-tensorrt/)
 
-This repository hosts the inference code of LightGlue, a lightweight feature matcher with high accuracy and blazing fast inference. It takes as input a set of keypoints and descriptors for each image and returns the indices of corresponding points. The architecture is based on adaptive pruning techniques, in both network width and depth - [check out the paper for more details](https://arxiv.org/pdf/2306.13643.pdf).
+# LightGlue ONNX
 
-We release pretrained weights of LightGlue with [SuperPoint](https://arxiv.org/abs/1712.07629), [DISK](https://arxiv.org/abs/2006.13566), [ALIKED](https://arxiv.org/abs/2304.03608) and [SIFT](https://www.cs.ubc.ca/~lowe/papers/ijcv04.pdf) local features.
-The training and evaluation code can be found in our library [glue-factory](https://github.com/cvg/glue-factory/).
+Open Neural Network Exchange (ONNX) compatible implementation of [LightGlue: Local Feature Matching at Light Speed](https://github.com/cvg/LightGlue). The ONNX model format allows for interoperability across different platforms with support for multiple execution providers, and removes Python-specific dependencies such as PyTorch. Supports TensorRT and OpenVINO.
 
-## Installation and demo [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/cvg/LightGlue/blob/main/demo.ipynb)
+> ✨ ***What's New***: End-to-end parallel dynamic batch size support. Read more in this [blog post](https://fabio-sim.github.io/blog/accelerating-lightglue-inference-onnx-runtime-tensorrt/).
 
-Install this repo using pip:
+<p align="center"><a href="https://fabio-sim.github.io/blog/accelerating-lightglue-inference-onnx-runtime-tensorrt/"><img src="assets/inference-comparison-speedup.svg" alt="Latency Comparison" width=90%></a><br><em>⏱️ Inference Time Comparison</em></p>
 
-```bash
-git clone https://github.com/cvg/LightGlue.git && cd LightGlue
-python -m pip install -e .
-```
-
-We provide a [demo notebook](demo.ipynb) which shows how to perform feature extraction and matching on an image pair.
-
-Here is a minimal script to match two images:
-
-```python
-from lightglue import LightGlue, SuperPoint, DISK, SIFT, ALIKED, DoGHardNet
-from lightglue.utils import load_image, rbd
-
-# SuperPoint+LightGlue
-extractor = SuperPoint(max_num_keypoints=2048).eval().cuda()  # load the extractor
-matcher = LightGlue(features='superpoint').eval().cuda()  # load the matcher
-
-# or DISK+LightGlue, ALIKED+LightGlue or SIFT+LightGlue
-extractor = DISK(max_num_keypoints=2048).eval().cuda()  # load the extractor
-matcher = LightGlue(features='disk').eval().cuda()  # load the matcher
-
-# load each image as a torch.Tensor on GPU with shape (3,H,W), normalized in [0,1]
-image0 = load_image('path/to/image_0.jpg').cuda()
-image1 = load_image('path/to/image_1.jpg').cuda()
-
-# extract local features
-feats0 = extractor.extract(image0)  # auto-resize the image, disable with resize=None
-feats1 = extractor.extract(image1)
-
-# match the features
-matches01 = matcher({'image0': feats0, 'image1': feats1})
-feats0, feats1, matches01 = [rbd(x) for x in [feats0, feats1, matches01]]  # remove batch dimension
-matches = matches01['matches']  # indices with shape (K,2)
-points0 = feats0['keypoints'][matches[..., 0]]  # coordinates in image #0, shape (K,2)
-points1 = feats1['keypoints'][matches[..., 1]]  # coordinates in image #1, shape (K,2)
-```
-
-We also provide a convenience method to match a pair of images:
-
-```python
-from lightglue import match_pair
-feats0, feats1, matches01 = match_pair(extractor, matcher, image0, image1)
-```
-
-##
-
-<p align="center">
-  <a href="https://arxiv.org/abs/2306.13643"><img src="assets/teaser.svg" alt="Logo" width=50%></a>
-  <br>
-  <em>LightGlue can adjust its depth (number of layers) and width (number of keypoints) per image pair, with a marginal impact on accuracy.</em>
-</p>
-
-## Advanced configuration
+<p align="center"><a href="https://arxiv.org/abs/2306.13643"><img src="assets/easy_hard.jpg" alt="LightGlue figure" width=80%></a></p>
 
 <details>
-<summary>[Detail of all parameters - click to expand]</summary>
+<summary>Changelog</summary>
 
-- ```n_layers```: Number of stacked self+cross attention layers. Reduce this value for faster inference at the cost of accuracy (continuous red line in the plot above). Default: 9 (all layers).
-- ```flash```: Enable FlashAttention. Significantly increases the speed and reduces the memory consumption without any impact on accuracy. Default: True (LightGlue automatically detects if FlashAttention is available).
-- ```mp```: Enable mixed precision inference. Default: False (off)
-- ```depth_confidence```: Controls the early stopping. A lower values stops more often at earlier layers. Default: 0.95, disable with -1.
-- ```width_confidence```: Controls the iterative point pruning. A lower value prunes more points earlier. Default: 0.99, disable with -1.
-- ```filter_threshold```: Match confidence. Increase this value to obtain less, but stronger matches. Default: 0.1
-
+- **17 July 2024**: End-to-end parallel dynamic batch size support. Revamp script UX. Add [blog post](https://fabio-sim.github.io/blog/accelerating-lightglue-inference-onnx-runtime-tensorrt/).
+- **02 November 2023**: Introduce TopK-trick to optimize out ArgMax for about 30% speedup.
+- **04 October 2023:** Fused LightGlue ONNX Models with support for FlashAttention-2 via `onnxruntime>=1.16.0`, up to 80% faster inference on long sequence lengths (number of keypoints).
+- **27 October 2023**: LightGlue-ONNX added to [Kornia](https://kornia.readthedocs.io/en/latest/feature.html#kornia.feature.OnnxLightGlue)!
+- **04 October 2023**: Multihead-attention fusion optimization.
+- **19 July 2023**: Add support for TensorRT.
+- **13 July 2023**: Add support for Flash Attention.
+- **11 July 2023**: Add support for mixed precision.
+- **04 July 2023**: Add inference time comparisons.
+- **01 July 2023**: Add support for extractor `max_num_keypoints`.
+- **30 June 2023**: Add support for DISK extractor.
+- **28 June 2023**: Add end-to-end SuperPoint+LightGlue export & inference pipeline.
 </details>
 
-The default values give a good trade-off between speed and accuracy. To maximize the accuracy, use all keypoints and disable the adaptive mechanisms:
-```python
-extractor = SuperPoint(max_num_keypoints=None)
-matcher = LightGlue(features='superpoint', depth_confidence=-1, width_confidence=-1)
+## ⭐ ONNX Export & Inference
+
+We provide a [typer](https://github.com/tiangolo/typer) CLI [`dynamo.py`](dynamo.py) to easily export LightGlue to ONNX and perform inference using ONNX Runtime. If you would like to try out inference right away, you can download ONNX models that have already been exported [here](https://github.com/fabio-sim/LightGlue-ONNX/releases).
+
+```shell
+$ python dynamo.py --help
+
+Usage: dynamo.py [OPTIONS] COMMAND [ARGS]...
+
+LightGlue Dynamo CLI
+
+╭─ Commands ───────────────────────────────────────╮
+│ export   Export LightGlue to ONNX.               │
+│ infer    Run inference for LightGlue ONNX model. │
+| trtexec  Run pure TensorRT inference using       |
+|          Polygraphy.                             |
+╰──────────────────────────────────────────────────╯
 ```
 
-To increase the speed with a small drop of accuracy, decrease the number of keypoints and lower the adaptive thresholds:
-```python
-extractor = SuperPoint(max_num_keypoints=1024)
-matcher = LightGlue(features='superpoint', depth_confidence=0.9, width_confidence=0.95)
-```
+Pass `--help` to see the available options for each command. The CLI will export the full extractor-matcher pipeline so that you don't have to worry about orchestrating intermediate steps.
 
-The maximum speed is obtained with a combination of:
-- [FlashAttention](https://arxiv.org/abs/2205.14135): automatically used when ```torch >= 2.0``` or if [installed from source](https://github.com/HazyResearch/flash-attention#installation-and-features).
-- PyTorch compilation, available when ```torch >= 2.0```:
-```python
-matcher = matcher.eval().cuda()
-matcher.compile(mode='reduce-overhead')
-```
-For inputs with fewer than 1536 keypoints (determined experimentally), this compiles LightGlue but disables point pruning (large overhead). For larger input sizes, it automatically falls backs to eager mode with point pruning. Adaptive depths is supported for any input size.
-
-## Benchmark
-
-
-<p align="center">
-  <a><img src="assets/benchmark.png" alt="Logo" width=80%></a>
-  <br>
-  <em>Benchmark results on GPU (RTX 3080). With compilation and adaptivity, LightGlue runs at 150 FPS @ 1024 keypoints and 50 FPS @ 4096 keypoints per image. This is a 4-10x speedup over SuperGlue. </em>
-</p>
-
-<p align="center">
-  <a><img src="assets/benchmark_cpu.png" alt="Logo" width=80%></a>
-  <br>
-  <em>Benchmark results on CPU (Intel i7 10700K). LightGlue runs at 20 FPS @ 512 keypoints. </em>
-</p>
-
-Obtain the same plots for your setup using our [benchmark script](benchmark.py):
-```
-python benchmark.py [--device cuda] [--add_superglue] [--num_keypoints 512 1024 2048 4096] [--compile]
-```
+## 📖 Example Commands
 
 <details>
-<summary>[Performance tip - click to expand]</summary>
-
-Note: **Point pruning** introduces an overhead that sometimes outweighs its benefits.
-Point pruning is thus enabled only when the there are more than N keypoints in an image, where N is hardware-dependent.
-We provide defaults optimized for current hardware (RTX 30xx GPUs).
-We suggest running the benchmark script and adjusting the thresholds for your hardware by updating `LightGlue.pruning_keypoint_thresholds['cuda']`.
-
+<summary>🔥 ONNX Export</summary>
+<pre>
+python dynamo.py export superpoint \
+  --num-keypoints 1024 \
+  -b 2 -h 1024 -w 1024 \
+  -o weights/superpoint_lightglue_pipeline.onnx
+</pre>
 </details>
 
-## Training and evaluation
+<details>
+<summary>⚡ ONNX Runtime Inference (CUDA)</summary>
+<pre>
+python dynamo.py infer \
+  weights/superpoint_lightglue_pipeline.onnx \
+  assets/sacre_coeur1.jpg assets/sacre_coeur2.jpg \
+  superpoint \
+  -h 1024 -w 1024 \
+  -d cuda
+</pre>
+</details>
 
-With [Glue Factory](https://github.com/cvg/glue-factory), you can train LightGlue with your own local features, on your own dataset!
-You can also evaluate it and other baselines on standard benchmarks like HPatches and MegaDepth.
+<details>
+<summary>🚀 ONNX Runtime Inference (TensorRT)</summary>
+<pre>
+python dynamo.py infer \
+  weights/superpoint_lightglue_pipeline.trt.onnx \
+  assets/sacre_coeur1.jpg assets/sacre_coeur2.jpg \
+  superpoint \
+  -h 1024 -w 1024 \
+  -d tensorrt --fp16
+</pre>
+</details>
 
-## Other links
-- [hloc - the visual localization toolbox](https://github.com/cvg/Hierarchical-Localization/): run LightGlue for Structure-from-Motion and visual localization.
-- [LightGlue-ONNX](https://github.com/fabio-sim/LightGlue-ONNX): export LightGlue to the Open Neural Network Exchange (ONNX) format with support for TensorRT and OpenVINO.
-- [Image Matching WebUI](https://github.com/Vincentqyw/image-matching-webui): a web GUI to easily compare different matchers, including LightGlue.
-- [kornia](https://kornia.readthedocs.io) now exposes LightGlue via the interfaces [`LightGlue`](https://kornia.readthedocs.io/en/latest/feature.html#kornia.feature.LightGlue) and [`LightGlueMatcher`](https://kornia.readthedocs.io/en/latest/feature.html#kornia.feature.LightGlueMatcher).
+<details>
+<summary>🧩 TensorRT Inference</summary>
+<pre>
+python dynamo.py trtexec \
+  weights/superpoint_lightglue_pipeline.trt.onnx \
+  assets/sacre_coeur1.jpg assets/sacre_coeur2.jpg \
+  superpoint \
+  -h 1024 -w 1024 \
+  --fp16
+</pre>
+</details>
 
-## BibTeX citation
-If you use any ideas from the paper or code from this repo, please consider citing:
+<details>
+<summary>🟣 ONNX Runtime Inference (OpenVINO)</summary>
+<pre>
+python dynamo.py infer \
+  weights/superpoint_lightglue_pipeline.onnx \
+  assets/sacre_coeur1.jpg assets/sacre_coeur2.jpg \
+  superpoint \
+  -h 512 -w 512 \
+  -d openvino
+</pre>
+</details>
+
+## Credits
+If you use any ideas from the papers or code in this repo, please consider citing the authors of [LightGlue](https://arxiv.org/abs/2306.13643) and [SuperPoint](https://arxiv.org/abs/1712.07629) and [DISK](https://arxiv.org/abs/2006.13566). Lastly, if the ONNX versions helped you in any way, please also consider starring this repository.
 
 ```txt
-@inproceedings{lindenberger2023lightglue,
+@inproceedings{lindenberger23lightglue,
   author    = {Philipp Lindenberger and
                Paul-Edouard Sarlin and
                Marc Pollefeys},
-  title     = {{LightGlue: Local Feature Matching at Light Speed}},
-  booktitle = {ICCV},
+  title     = {{LightGlue}: Local Feature Matching at Light Speed},
+  booktitle = {ArXiv PrePrint},
   year      = {2023}
 }
 ```
 
+```txt
+@article{DBLP:journals/corr/abs-1712-07629,
+  author       = {Daniel DeTone and
+                  Tomasz Malisiewicz and
+                  Andrew Rabinovich},
+  title        = {SuperPoint: Self-Supervised Interest Point Detection and Description},
+  journal      = {CoRR},
+  volume       = {abs/1712.07629},
+  year         = {2017},
+  url          = {http://arxiv.org/abs/1712.07629},
+  eprinttype    = {arXiv},
+  eprint       = {1712.07629},
+  timestamp    = {Mon, 13 Aug 2018 16:47:29 +0200},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-1712-07629.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+```
 
-## License
-The pre-trained weights of LightGlue and the code provided in this repository are released under the [Apache-2.0 license](./LICENSE). [DISK](https://github.com/cvlab-epfl/disk) follows this license as well but SuperPoint follows [a different, restrictive license](https://github.com/magicleap/SuperPointPretrainedNetwork/blob/master/LICENSE) (this includes its pre-trained weights and its [inference file](./lightglue/superpoint.py)). [ALIKED](https://github.com/Shiaoming/ALIKED) was published under a BSD-3-Clause license. 
+```txt
+@article{DBLP:journals/corr/abs-2006-13566,
+  author       = {Michal J. Tyszkiewicz and
+                  Pascal Fua and
+                  Eduard Trulls},
+  title        = {{DISK:} Learning local features with policy gradient},
+  journal      = {CoRR},
+  volume       = {abs/2006.13566},
+  year         = {2020},
+  url          = {https://arxiv.org/abs/2006.13566},
+  eprinttype    = {arXiv},
+  eprint       = {2006.13566},
+  timestamp    = {Wed, 01 Jul 2020 15:21:23 +0200},
+  biburl       = {https://dblp.org/rec/journals/corr/abs-2006-13566.bib},
+  bibsource    = {dblp computer science bibliography, https://dblp.org}
+}
+```
