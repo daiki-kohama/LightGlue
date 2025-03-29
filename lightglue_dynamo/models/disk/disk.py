@@ -68,7 +68,7 @@ class DISK(torch.nn.Module):
         descriptors = F.normalize(descriptors, dim=-1)
 
         return (
-            keypoints,  # (B, N, 2) with <X, Y>
+            keypoints.to(dtype=torch.int16),  # (B, N, 2) with <X, Y>
             scores,  # (B, N)
             descriptors,  # (B, N, descriptor_dim)
         )

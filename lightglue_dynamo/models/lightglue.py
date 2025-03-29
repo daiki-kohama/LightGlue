@@ -227,7 +227,7 @@ class LightGlue(nn.Module):
 
         scores = self.log_assignment[i](descriptors)  # (B, N, N)
         matches, mscores = filter_matches(scores, self.filter_threshold)
-        return matches, mscores  # (M, 3), (M,)
+        return matches.to(dtype=torch.int16), mscores  # (M, 3), (M,)
 
     def confidence_threshold(self, layer_index: int) -> float:
         """scaled confidence threshold"""

@@ -188,7 +188,7 @@ class SuperPoint(nn.Module):
         top_descriptors = F.normalize(top_descriptors, p=2, dim=1).permute(0, 2, 1)
 
         return (
-            top_keypoints,  # (B, N, 2) with <X, Y>
+            top_keypoints.to(dtype=torch.int16),  # (B, N, 2) with <X, Y>
             top_scores,  # (B, N)
             top_descriptors,  # (B, N, descriptor_dim)
         )
