@@ -1,11 +1,10 @@
 import argparse
-from pathlib import Path
 
 import cv2
 import torch
 
 from lightglue import LightGlue, SuperPoint
-from lightglue.utils import load_image, rbd
+from lightglue.utils import numpy_image_to_torch, rbd
 
 
 def image_match(image0, image1):
@@ -22,15 +21,12 @@ def image_match(image0, image1):
     # matcher = LightGlue(features='disk').eval().cuda()  # load the matcher
 
     # load each image as a torch.Tensor on GPU with shape (3,H,W), normalized in [0,1]
-    image0 = load_image(Path(image0)).to(device)
-    image1 = load_image(Path(image1)).to(device)
+    image0 = numpy_image_to_torch(image0[..., ::-1]).to(device)
+    image1 = numpy_image_to_torch(image1[..., ::-1]).to(device)
 
     # extract local features
     feats0 = extractor.extract(image0)  # auto-resize the image, disable with resize=None
     feats1 = extractor.extract(image1)
-
-    print(feats0["descriptors"].shape)
-    print(feats0.keys())
 
     # match the features
     matches01 = matcher({"image0": feats0, "image1": feats1})
@@ -60,9 +56,7 @@ def image_match(image0, image1):
 # key 'stop' is the stopping layer of the matcher
 
 
-def view_points_increment(image0, image1, points0, points1, increment=15):
-    image0 = cv2.imread(str(image0))
-    image1 = cv2.imread(str(image1))
+def view_points_increment(image0, image1, points0, points1, increment=15, delay=0):
     combined_image = cv2.vconcat([image0, image1])
 
     if isinstance(points0, torch.Tensor):
@@ -70,28 +64,49 @@ def view_points_increment(image0, image1, points0, points1, increment=15):
     if isinstance(points1, torch.Tensor):
         points1 = points1.cpu().numpy()
 
+    if increment == 0:
+        increment = len(points0)
+
     for i in range(0, len(points0), increment):
         show_image = combined_image.copy()
         for p0, p1 in zip(points0[i : i + increment], points1[i : i + increment]):
             p0 = tuple(p0.astype(int))
             p1 = tuple(p1.astype(int))
-            cv2.circle(show_image, p0, 3, (0, 0, 255), -1)
-            cv2.circle(show_image, (p1[0], p1[1] + image0.shape[0]), 3, (0, 0, 255), -1)
-            cv2.line(show_image, p0, (p1[0], p1[1] + image0.shape[0]), (0, 255, 0), 1)
+            cv2.circle(show_image, p0, 10, (0, 0, 255), 2)
+            cv2.circle(show_image, (p1[0], p1[1] + image0.shape[0]), 10, (0, 0, 255), 2)
+            cv2.line(show_image, p0, (p1[0], p1[1] + image0.shape[0]), (0, 255, 0), 2)
         cv2.imshow("image", show_image)
-        cv2.waitKey(0)
+        cv2.waitKey(delay=delay)
     cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="LightGlue")
-    parser.add_argument("--image0", type=str, required=True, help="path to image #0")
-    parser.add_argument("--image1", type=str, required=True, help="path to image #1")
+    parser.add_argument("--image0", type=str, help="path to image #0")
+    parser.add_argument("--image1", type=str, help="path to image #1")
+    parser.add_argument("--video", type=str, help="path to video")
+    parser.add_argument("--frame0", type=int, help="frame #0")
+    parser.add_argument("--frame1", type=int, help="frame #1")
     args = parser.parse_args()
 
-    points0, points1 = image_match(args.image0, args.image1)
+    if args.video:
+        if args.frame0 is None or args.frame1 is None:
+            raise ValueError("frame0 and frame1 must be provided")
+        cap = cv2.VideoCapture()
+        cap.open(args.video)
+        cap.set(cv2.CAP_PROP_POS_FRAMES, args.frame0)
+        ret, image0 = cap.read()
+        cap.set(cv2.CAP_PROP_POS_FRAMES, args.frame1)
+        ret, image1 = cap.read()
+    else:
+        if not args.image0 or not args.image1:
+            raise ValueError("image0 and image1 must be provided")
+        image0 = cv2.imread(args.image0)
+        image1 = cv2.imread(args.image1)
+
+    points0, points1 = image_match(image0, image1)
 
     print(len(points0))
     print(len(points1))
 
-    # view_points_increment(args.image0, args.image1, points0, points1, increment=15)
+    view_points_increment(image0, image1, points0, points1, increment=15, delay=1000)
