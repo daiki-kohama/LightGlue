@@ -161,7 +161,9 @@ class SuperPoint(nn.Module):
             one = torch.tensor(1)  # Always constant, safe to ignore warning.
             top_indices = top_indices.unsqueeze(2).floor_divide(
                 torch.stack([w * s, one]).to(device=top_indices.device)  # type: ignore
-            ) % torch.stack([h * s, w * s]).to(device=top_indices.device)  # type: ignore
+            ) % torch.stack([h * s, w * s]).to(
+                device=top_indices.device
+            )  # type: ignore
         else:
             top_indices = top_indices.unsqueeze(2).floor_divide(
                 torch.tensor([w * s, 1], device=top_indices.device)

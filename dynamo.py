@@ -20,19 +20,30 @@ def export(
     extractor_type: Annotated[Extractor, typer.Argument()] = Extractor.superpoint,
     output: Annotated[
         Optional[Path],  # typer does not support Path | None # noqa: UP007
-        typer.Option("-o", "--output", dir_okay=False, writable=True, help="Path to save exported model."),
+        typer.Option(
+            "-o", "--output", dir_okay=False, writable=True, help="Path to save exported model."
+        ),
     ] = None,
     batch_size: Annotated[
         int,
         typer.Option(
-            "-b", "--batch-size", min=0, help="Batch size of exported ONNX model. Set to 0 to mark as dynamic."
+            "-b",
+            "--batch-size",
+            min=0,
+            help="Batch size of exported ONNX model. Set to 0 to mark as dynamic.",
         ),
     ] = 0,
     height: Annotated[
-        int, typer.Option("-h", "--height", min=0, help="Height of input image. Set to 0 to mark as dynamic.")
+        int,
+        typer.Option(
+            "-h", "--height", min=0, help="Height of input image. Set to 0 to mark as dynamic."
+        ),
     ] = 0,
     width: Annotated[
-        int, typer.Option("-w", "--width", min=0, help="Width of input image. Set to 0 to mark as dynamic.")
+        int,
+        typer.Option(
+            "-w", "--width", min=0, help="Width of input image. Set to 0 to mark as dynamic."
+        ),
     ] = 0,
     num_keypoints: Annotated[
         int, typer.Option(min=128, help="Number of keypoints outputted by feature extractor.")
@@ -44,7 +55,9 @@ def export(
             help="Fuse multi-head attention subgraph into one optimized operation. (ONNX Runtime-only).",
         ),
     ] = False,
-    opset: Annotated[int, typer.Option(min=16, max=20, help="ONNX opset version of exported model.")] = 17,
+    opset: Annotated[
+        int, typer.Option(min=16, max=20, help="ONNX opset version of exported model.")
+    ] = 17,
     fp16: Annotated[bool, typer.Option("--fp16", help="Whether to also convert to FP16.")] = False,
 ):
     """Export LightGlue to ONNX."""
@@ -107,17 +120,23 @@ def export(
         typer.echo(
             "Converting to FP16. Warning: This FP16 model should NOT be used for TensorRT. TRT provides its own fp16 option."
         )
-        onnx.save_model(convert_float_to_float16(onnx.load_model(output)), output.with_suffix(".fp16.onnx"))
+        onnx.save_model(
+            convert_float_to_float16(onnx.load_model(output)), output.with_suffix(".fp16.onnx")
+        )
 
 
 @app.command()
 def infer(
-    model_path: Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True, help="Path to ONNX model.")],
+    model_path: Annotated[
+        Path, typer.Argument(exists=True, dir_okay=False, readable=True, help="Path to ONNX model.")
+    ],
     left_image_path: Annotated[
-        Path, typer.Argument(exists=True, dir_okay=False, readable=True, help="Path to first image.")
+        Path,
+        typer.Argument(exists=True, dir_okay=False, readable=True, help="Path to first image."),
     ],
     right_image_path: Annotated[
-        Path, typer.Argument(exists=True, dir_okay=False, readable=True, help="Path to second image.")
+        Path,
+        typer.Argument(exists=True, dir_okay=False, readable=True, help="Path to second image."),
     ],
     extractor_type: Annotated[Extractor, typer.Argument()] = Extractor.superpoint,
     output_path: Annotated[
@@ -132,17 +151,25 @@ def infer(
     ] = None,
     height: Annotated[
         int,
-        typer.Option("-h", "--height", min=1, help="Height of input image at which to perform inference."),
+        typer.Option(
+            "-h", "--height", min=1, help="Height of input image at which to perform inference."
+        ),
     ] = 1024,
     width: Annotated[
         int,
-        typer.Option("-w", "--width", min=1, help="Width of input image at which to perform inference."),
+        typer.Option(
+            "-w", "--width", min=1, help="Width of input image at which to perform inference."
+        ),
     ] = 1024,
     device: Annotated[
         InferenceDevice, typer.Option("-d", "--device", help="Device to run inference on.")
     ] = InferenceDevice.cpu,
-    fp16: Annotated[bool, typer.Option("--fp16", help="Whether model uses FP16 precision.")] = False,
-    profile: Annotated[bool, typer.Option("--profile", help="Whether to profile model execution.")] = False,
+    fp16: Annotated[
+        bool, typer.Option("--fp16", help="Whether model uses FP16 precision.")
+    ] = False,
+    profile: Annotated[
+        bool, typer.Option("--profile", help="Whether to profile model execution.")
+    ] = False,
 ):
     """Run inference for LightGlue ONNX model."""
     import numpy as np
@@ -159,7 +186,9 @@ def infer(
             images = SuperPointPreprocessor.preprocess(images)
         case Extractor.disk:
             images = DISKPreprocessor.preprocess(images)
-    images = images.astype(np.float16 if fp16 and device != InferenceDevice.tensorrt else np.float32)
+    images = images.astype(
+        np.float16 if fp16 and device != InferenceDevice.tensorrt else np.float32
+    )
 
     session_options = ort.SessionOptions()
     session_options.enable_profiling = profile
@@ -192,7 +221,9 @@ def infer(
         keypoints, matches, mscores = session.run(None, {"images": images})
 
     viz.plot_images(raw_images)
-    viz.plot_matches(keypoints[0][matches[..., 1]], keypoints[1][matches[..., 2]], color="lime", lw=0.2)
+    viz.plot_matches(
+        keypoints[0][matches[..., 1]], keypoints[1][matches[..., 2]], color="lime", lw=0.2
+    )
     if output_path is None:
         viz.plt.show()
     else:
@@ -203,13 +234,20 @@ def infer(
 def trtexec(
     model_path: Annotated[
         Path,
-        typer.Argument(exists=True, dir_okay=False, readable=True, help="Path to ONNX model or built TensorRT engine."),
+        typer.Argument(
+            exists=True,
+            dir_okay=False,
+            readable=True,
+            help="Path to ONNX model or built TensorRT engine.",
+        ),
     ],
     left_image_path: Annotated[
-        Path, typer.Argument(exists=True, dir_okay=False, readable=True, help="Path to first image.")
+        Path,
+        typer.Argument(exists=True, dir_okay=False, readable=True, help="Path to first image."),
     ],
     right_image_path: Annotated[
-        Path, typer.Argument(exists=True, dir_okay=False, readable=True, help="Path to second image.")
+        Path,
+        typer.Argument(exists=True, dir_okay=False, readable=True, help="Path to second image."),
     ],
     extractor_type: Annotated[Extractor, typer.Argument()] = Extractor.superpoint,
     output_path: Annotated[
@@ -224,14 +262,22 @@ def trtexec(
     ] = None,
     height: Annotated[
         int,
-        typer.Option("-h", "--height", min=1, help="Height of input image at which to perform inference."),
+        typer.Option(
+            "-h", "--height", min=1, help="Height of input image at which to perform inference."
+        ),
     ] = 1024,
     width: Annotated[
         int,
-        typer.Option("-w", "--width", min=1, help="Width of input image at which to perform inference."),
+        typer.Option(
+            "-w", "--width", min=1, help="Width of input image at which to perform inference."
+        ),
     ] = 1024,
-    fp16: Annotated[bool, typer.Option("--fp16", help="Whether model uses FP16 precision.")] = False,
-    profile: Annotated[bool, typer.Option("--profile", help="Whether to profile model execution.")] = False,
+    fp16: Annotated[
+        bool, typer.Option("--fp16", help="Whether model uses FP16 precision.")
+    ] = False,
+    profile: Annotated[
+        bool, typer.Option("--profile", help="Whether to profile model execution.")
+    ] = False,
 ):
     """Run pure TensorRT inference for LightGlue model using Polygraphy (requires TensorRT to be installed)."""
     import numpy as np
@@ -262,19 +308,27 @@ def trtexec(
     if model_path.suffix == ".engine":
         build_engine = EngineFromBytes(BytesFromPath(str(model_path)))
     else:  # .onnx
-        build_engine = EngineFromNetwork(NetworkFromOnnxPath(str(model_path)), config=CreateConfig(fp16=fp16))
+        build_engine = EngineFromNetwork(
+            NetworkFromOnnxPath(str(model_path)), config=CreateConfig(fp16=fp16)
+        )
         build_engine = SaveEngine(build_engine, str(model_path.with_suffix(".engine")))
 
     with TrtRunner(build_engine) as runner:
         for _ in range(10 if profile else 1):  # Warm-up if profiling
             outputs = runner.infer(feed_dict={"images": images})
-            keypoints, matches, mscores = outputs["keypoints"], outputs["matches"], outputs["mscores"]  # noqa: F841
+            keypoints, matches, mscores = (
+                outputs["keypoints"],
+                outputs["matches"],
+                outputs["mscores"],
+            )  # noqa: F841
 
         if profile:
             typer.echo(f"Inference Time: {runner.last_inference_time():.3f} s")
 
     viz.plot_images(raw_images)
-    viz.plot_matches(keypoints[0][matches[..., 1]], keypoints[1][matches[..., 2]], color="lime", lw=0.2)
+    viz.plot_matches(
+        keypoints[0][matches[..., 1]], keypoints[1][matches[..., 2]], color="lime", lw=0.2
+    )
     if output_path is None:
         viz.plt.show()
     else:

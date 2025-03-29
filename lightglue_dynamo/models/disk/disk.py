@@ -16,7 +16,9 @@ def heatmap_to_keypoints(heatmap: torch.Tensor, n: int, window_size: int = 5):
         one = torch.tensor(1)  # Always constant, safe to ignore warning.
         top_indices = top_indices.unsqueeze(2).floor_divide(
             torch.stack([w, one]).to(device=top_indices.device)  # type: ignore
-        ) % torch.stack([h, w]).to(device=top_indices.device)  # type: ignore
+        ) % torch.stack([h, w]).to(
+            device=top_indices.device
+        )  # type: ignore
     else:
         top_indices = top_indices.unsqueeze(2).floor_divide(
             torch.tensor([w, 1], device=top_indices.device)
@@ -29,7 +31,9 @@ def heatmap_to_keypoints(heatmap: torch.Tensor, n: int, window_size: int = 5):
 class DISK(torch.nn.Module):
     url = "https://raw.githubusercontent.com/cvlab-epfl/disk/master/depth-save.pth"
 
-    def __init__(self, descriptor_dim: int = 128, nms_window_size: int = 5, num_keypoints: int = 1024) -> None:
+    def __init__(
+        self, descriptor_dim: int = 128, nms_window_size: int = 5, num_keypoints: int = 1024
+    ) -> None:
         super().__init__()
         if nms_window_size % 2 != 1:
             raise ValueError(f"window_size has to be odd, got {nms_window_size}")
@@ -38,7 +42,9 @@ class DISK(torch.nn.Module):
         self.nms_window_size = nms_window_size
         self.num_keypoints = num_keypoints
 
-        self.unet = Unet(in_features=3, size=5, down=[16, 32, 64, 64, 64], up=[64, 64, 64, descriptor_dim + 1])
+        self.unet = Unet(
+            in_features=3, size=5, down=[16, 32, 64, 64, 64], up=[64, 64, 64, descriptor_dim + 1]
+        )
 
         self.load_state_dict(torch.hub.load_state_dict_from_url(self.url)["extractor"])
 
@@ -52,7 +58,9 @@ class DISK(torch.nn.Module):
         descriptors = unet_output[:, : self.descriptor_dim]  # (B, D, H, W)
         heatmaps = unet_output[:, self.descriptor_dim :]  # (B, 1, H, W)
 
-        keypoints, scores = heatmap_to_keypoints(heatmaps, n=self.num_keypoints, window_size=self.nms_window_size)
+        keypoints, scores = heatmap_to_keypoints(
+            heatmaps, n=self.num_keypoints, window_size=self.nms_window_size
+        )
 
         descriptors = descriptors.permute(0, 2, 3, 1)
         batches = torch.arange(b, device=image.device)[:, None].expand(b, self.num_keypoints)
