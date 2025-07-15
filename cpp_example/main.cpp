@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 
         cv::Mat img_keypts_resized;
         cv::resize(img_keypts, img_keypts_resized, cv::Size(1920, 960));
-        cv::imshow("keypoints", img_keypts_resized);
+        cv::imshow("keypoints" + std::to_string(i), img_keypts_resized);
         cv::waitKey(0);
     }
 
